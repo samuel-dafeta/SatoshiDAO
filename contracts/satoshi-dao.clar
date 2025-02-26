@@ -356,3 +356,61 @@
     false
   )
 )
+
+(define-private (is-valid-collaboration-id (collaboration-id uint))
+  (match (map-get? collaborations collaboration-id)
+    collaboration true
+    false
+  )
+)
+
+(define-private (calculate-voting-power (user principal))
+  (let (
+    (member-data (unwrap! (map-get? members user) u0))
+    (reputation (get reputation member-data))
+    (stake (get stake member-data))
+  )
+    (+ (* reputation u10) stake)
+  )
+)
+
+(define-private (update-member-reputation (user principal) (change int))
+  (match (map-get? members user)
+    member-data 
+    (let (
+      (new-reputation (to-uint (+ (to-int (get reputation member-data)) change)))
+      (updated-data (merge member-data {reputation: new-reputation, last-interaction: block-height}))
+    )
+      (map-set members user updated-data)
+      (ok new-reputation)
+    )
+    ERR-NOT-MEMBER
+  )
+)
+
+(define-public (decay-inactive-members)
+  (let (
+    (caller tx-sender)
+    (current-block block-height)
+  )
+    (asserts! (is-eq caller CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (map-set members caller
+      (match (map-get? members caller)
+        member-data 
+        (if (> (- current-block (get last-interaction member-data)) u4320) ;; Approx. 30 days of inactivity
+          (merge member-data {reputation: (/ (get reputation member-data) u2)}) ;; Halve the reputation
+          member-data
+        )
+        { reputation: u0, stake: u0, last-interaction: current-block }
+      )
+    )
+    (ok true)
+  )
+)
+
+;; Initialize contract
+(begin
+  (var-set total-members u0)
+  (var-set total-proposals u0)
+  (var-set treasury-balance u0)
+)
