@@ -87,7 +87,7 @@
     (caller tx-sender)
   )
     (asserts! (not (is-member caller)) ERR-ALREADY-MEMBER)
-    (map-set members caller {reputation: u1, stake: u0, last-interaction: block-height})
+    (map-set members caller {reputation: u1, stake: u0, last-interaction: stacks-block-height})
     (var-set total-members (+ (var-get total-members) u1))
     (ok true)
   )
@@ -115,7 +115,7 @@
       member-data 
       (let (
         (new-stake (+ (get stake member-data) amount))
-        (updated-data (merge member-data {stake: new-stake, last-interaction: block-height}))
+        (updated-data (merge member-data {stake: new-stake, last-interaction: stacks-block-height}))
       )
         (map-set members caller updated-data)
         (var-set treasury-balance (+ (var-get treasury-balance) amount))
@@ -141,7 +141,7 @@
         (try! (as-contract (stx-transfer? amount tx-sender caller)))
         (let (
           (new-stake (- current-stake amount))
-          (updated-data (merge member-data {stake: new-stake, last-interaction: block-height}))
+          (updated-data (merge member-data {stake: new-stake, last-interaction: stacks-block-height}))
         )
           (map-set members caller updated-data)
           (var-set treasury-balance (- (var-get treasury-balance) amount))
@@ -172,8 +172,8 @@
         yes-votes: u0,
         no-votes: u0,
         status: "active",
-        created-at: block-height,
-        expires-at: (+ block-height u1440) ;; Proposal expires after 1440 blocks (approx. 10 days)
+        created-at: stacks-block-height,
+        expires-at: (+ stacks-block-height u1440) ;; Proposal expires after 1440 blocks (approx. 10 days)
       }
     )
     (var-set total-proposals proposal-id)
@@ -214,7 +214,7 @@
     (match (map-get? proposals proposal-id)
       proposal 
       (begin
-        (asserts! (>= block-height (get expires-at proposal)) ERR-PROPOSAL-EXPIRED)
+        (asserts! (>= stacks-block-height (get expires-at proposal)) ERR-PROPOSAL-EXPIRED)
         (asserts! (is-eq (get status proposal) "active") ERR-INVALID-PROPOSAL)
         (let (
           (yes-votes (get yes-votes proposal))
@@ -343,7 +343,7 @@
 (define-private (is-active-proposal (proposal-id uint))
   (match (map-get? proposals proposal-id)
     proposal (and 
-      (< block-height (get expires-at proposal))
+      (< stacks-block-height (get expires-at proposal))
       (is-eq (get status proposal) "active")
     )
     false
@@ -379,7 +379,7 @@
     member-data 
     (let (
       (new-reputation (to-uint (+ (to-int (get reputation member-data)) change)))
-      (updated-data (merge member-data {reputation: new-reputation, last-interaction: block-height}))
+      (updated-data (merge member-data {reputation: new-reputation, last-interaction: stacks-block-height}))
     )
       (map-set members user updated-data)
       (ok new-reputation)
@@ -391,7 +391,7 @@
 (define-public (decay-inactive-members)
   (let (
     (caller tx-sender)
-    (current-block block-height)
+    (current-block stacks-block-height)
   )
     (asserts! (is-eq caller CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (map-set members caller
